@@ -14,7 +14,7 @@
 #     name: python3
 # ---
 
-# %% id="njEh8Cemo3zb" colab={"base_uri": "https://localhost:8080/"} executionInfo={"status": "ok", "timestamp": 1632436518790, "user_tz": 180, "elapsed": 11154, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}} outputId="095da976-a451-4f60-9236-3dc82b2f63de"
+# %%
 # Antes de ejecutar: Activar TPUs como sigue:
 # menu "Entorno de Ejecucion" -> "Cambiar tipo de entorno de ejecucion" -> "Acelerador de Hardware" = "TPU"
 
@@ -29,7 +29,7 @@ if tf.test.gpu_device_name():
 else:
     print("Usando CPU.")
 
-# %% id="IFNd6dlwv7T1" executionInfo={"status": "ok", "timestamp": 1632436520218, "user_tz": 180, "elapsed": 1435, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 ##################################################################
 # Este script carga VGG16, reemplaza la ultima capa de prediccion,
 # y reentrena para clasificar imagenes de 10 categorias de flores.
@@ -49,7 +49,7 @@ from sklearn.model_selection import train_test_split
 import sklearn.preprocessing
 
 
-# %% id="fm-hHB0NyDux" executionInfo={"status": "ok", "timestamp": 1632436520219, "user_tz": 180, "elapsed": 24, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # algunos parametros del entrenamiento
 batch_size = 32  # cada batch son 32 imagenes
 epochs = 13  # entrenamos hasta 13 epochs (pasadas sobre el dataset de entrenamiento), a menos que paremos antes por early stopping
@@ -62,7 +62,7 @@ learning_rate_decay = 1e-6
 learning_rate_momentum = 0.7
 
 
-# %% id="iI_H5qI_yF9w" executionInfo={"status": "ok", "timestamp": 1632436520219, "user_tz": 180, "elapsed": 23, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 def preprocesar_imagen_como_caffe(image: np.ndarray) -> np.ndarray:
     """
     Transforma las imagenes al formato con el que fue entrenado el modelo de VGG16 que estamos usando.
@@ -107,7 +107,7 @@ def encode_onehot_labels(labels: np.ndarray) -> np.ndarray:
     return label_binarizer.transform(labels)
 
 
-# %% id="Emb12Xn9yLhM" executionInfo={"status": "ok", "timestamp": 1632436520220, "user_tz": 180, "elapsed": 23, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 def VGG_16():
     img_input = Input(shape=(224, 224, 3))  # tamaño de imagenes y 3 canales de colores
 
@@ -174,7 +174,7 @@ def VGG_16():
     return Model(inputs=img_input, outputs=output, name='vgg16')
 
 
-# %% id="Tv7VlazpyORO" executionInfo={"status": "ok", "timestamp": 1632436523376, "user_tz": 180, "elapsed": 3178, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # leer el dataset de 210 imagenes de flores junto con y sus etiquetas
 dataset = h5py.File(
     "/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/10FlowerColorImages.h5",
@@ -186,11 +186,11 @@ image_labels = dataset['labels'][()]
 images = rescalar_imagenes(images)
 onehot_labels = encode_onehot_labels(image_labels)
 
-# %% id="ZXfOOjk9y557" executionInfo={"status": "ok", "timestamp": 1632436523381, "user_tz": 180, "elapsed": 13, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # armar la arquitectura de la red neuronal
 pretrained_vgg16 = VGG_16()
 
-# %% id="AJdWYYMhy8NE" executionInfo={"status": "ok", "timestamp": 1632436525002, "user_tz": 180, "elapsed": 1631, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # El modelo tiene los pesos del entrenamiento con Caffe, donde el dataset tiene los pixels en orden 'BGR'
 #  y c/pixel centrado sobre la media del dataset imagenet = [103.939, 116.779, 123.68]
 # Las imagenes nuevas tienen que tener exactamente esta transformacion
@@ -198,7 +198,7 @@ pretrained_vgg16.load_weights(
     '/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/vgg16_weights.h5'
 )
 
-# %% id="JvblPEJ0i67t" colab={"base_uri": "https://localhost:8080/"} executionInfo={"status": "ok", "timestamp": 1632436525003, "user_tz": 180, "elapsed": 26, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}} outputId="045c488f-54e3-49ad-bc36-58307eff9130"
+# %%
 # Aqui eliminamos el block5 COMPLETO de VGG 16 (el ultimo bloque de convoluciones antes de clasificar),
 # y conectamos la salida del block 4 a las 2 capas densas de clasificación.
 # Lo eliminamos creando una nueva capa "replaced_flatten" cuya entrada es la salida de "block4_pool".
@@ -213,7 +213,7 @@ new_layer = Dense(10, activation="softmax", name="predict_10flowers")(new_layer)
 pretrained_vgg16 = Model(pretrained_vgg16.input, new_layer)
 pretrained_vgg16.summary()
 
-# %% id="3096j1L7yVfx" executionInfo={"status": "ok", "timestamp": 1632436525005, "user_tz": 180, "elapsed": 23, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # setear a todas las capas, excepto las 3 ultimas capas de clasificacion
 # como "no entrenable" (los pesos no se actualizaran)
 for layer in pretrained_vgg16.layers[:-3]:
@@ -222,7 +222,7 @@ for layer in pretrained_vgg16.layers[:-3]:
 # crear un nuevo modelo cuya salida es la nueva capa
 new_model = Model(inputs=pretrained_vgg16.input, outputs=new_layer)
 
-# %% id="5q_Jonghyesi" executionInfo={"status": "ok", "timestamp": 1632436525006, "user_tz": 180, "elapsed": 24, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # compilar el modelo con SGD/momentum optimizer
 # y un learning rate muuuuy lento
 sgd = SGD(
@@ -238,7 +238,7 @@ new_model.compile(
     optimizer=sgd, loss='categorical_crossentropy', metrics=['categorical_accuracy']
 )
 
-# %% id="2iSzocdpyjei" executionInfo={"status": "ok", "timestamp": 1632436525007, "user_tz": 180, "elapsed": 23, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # didivir el dataset en 70% entrenamiento y 30% test
 X_train, X_test, y_train, y_test = train_test_split(
     images,
@@ -271,7 +271,7 @@ train_generator = train_datagen.flow(
 
 validation_generator = test_datagen.flow(X_test, y_test)
 
-# %% colab={"base_uri": "https://localhost:8080/"} id="nFgMzQNoymQm" executionInfo={"status": "ok", "timestamp": 1632436682940, "user_tz": 180, "elapsed": 157955, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}} outputId="b3a3340e-a00e-4ae8-922e-ce82c753f70d"
+# %%
 # entrenar y guarda el mejor resultado
 new_model.fit(
     train_generator,

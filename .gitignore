@@ -1,3 +1,6 @@
+# folders
+/src/.ipynb_checkpoints/*
+
 # csv files
 *.csv
 

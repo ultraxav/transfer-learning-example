@@ -14,36 +14,42 @@
 #     name: python3
 # ---
 
-# %% id="KiLC1RMMFNRU" colab={"base_uri": "https://localhost:8080/"} executionInfo={"status": "ok", "timestamp": 1631836546894, "user_tz": 180, "elapsed": 3475, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}} outputId="72ec99fa-25c7-4fdd-acb8-eed5583affbf"
+# %% [markdown]
+# # Reentrenameinto de Red
+#
 # Este notebook lee un modelo de keras ya entrenado, y lo testea contra el dataset de holdout the "10 flowers".
+#
+# ## Integrantes:
+#
+# * Del Villar, Javier
+# * Pistoya, Haydeé Soledad
+# * Sorza, Andrés
+#
+# ## Carga de Librerías
 
-# Antes de ejecutar: Activar GPUs como sigue:
-# menu "Entorno de Ejecucion" -> "Cambiar tipo de entorno de ejecucion" -> "Acelerador de Hardware" = "GPU"
-
-# %tensorflow_version 2.x
+# %%
 import tensorflow as tf
+import h5py
+import numpy as np
 
-print("Usandor Tensorflow version " + tf.__version__)
+from keras.models import load_model
+from keras.preprocessing import image
+from os.path import join
+from skimage.transform import resize
+from typing import List, Tuple
 
+print("Usando Tensorflow version " + tf.__version__)
 
 if tf.test.gpu_device_name():
     print('Usando GPU: {}'.format(tf.test.gpu_device_name()))
 else:
     print("Usando CPU.")
 
-# %% id="sn9HyNB-Usq6"
-from keras.models import load_model
-import h5py
-import numpy as np
 
-from typing import List
-from skimage.transform import resize
-from keras.preprocessing import image
-import numpy as np
-from os.path import join
-from typing import List, Tuple
+# %% [markdown]
+# ## Funciones de Soporte
 
-
+# %%
 def read_target_names(target_names_file: str) -> List[str]:
     """
     Lee el archivo con los nombres de categoria. Asume que es un archivo de texto
@@ -116,9 +122,7 @@ def get_predictions_for_image(
     return decode_predictions(keras_trained_model.predict(img), labels, top_n)
 
 
-# %% id="s28lpqWLFPA6" colab={"base_uri": "https://localhost:8080/"} executionInfo={"status": "ok", "timestamp": 1626914833359, "user_tz": 180, "elapsed": 17608, "user": {"displayName": "Fernando Das Neves", "photoUrl": "", "userId": "06324247755041763216"}} outputId="4f5b64ea-6e38-4b49-8f96-f6df62145edf"
-
-
+# %%
 # asume que el archivo con el modelo entrenado esta almacenado en gdrive.
 # Si el archivo no esta esta en grdive, subalo.
 model_file = (
@@ -136,6 +140,7 @@ dataset = h5py.File(
     'r',
 )
 
+# %%
 # El [()] hace que se lea el dataset completo a memoria, en vez de leerlo bajo demanda
 images = dataset['images'][()]
 image_labels = dataset['labels'][()]

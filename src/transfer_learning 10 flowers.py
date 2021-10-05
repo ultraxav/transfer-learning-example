@@ -14,7 +14,7 @@
 #     name: python3
 # ---
 
-# %% colab={"base_uri": "https://localhost:8080/"} id="njEh8Cemo3zb" executionInfo={"status": "ok", "timestamp": 1632436877147, "user_tz": 180, "elapsed": 7956, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}} outputId="be0c2604-dbac-45ce-9727-223443d42064"
+# %%
 # Antes de ejecutar: Activar GPUs como sigue:
 # menu "Entorno de Ejecucion" -> "Cambiar tipo de entorno de ejecucion" -> "Acelerador de Hardware" = "GPU"
 # How to save tensorflow model to google drive: https://stackoverflow.com/questions/67305778/how-to-save-tensorflow-model-to-google-drive
@@ -30,7 +30,7 @@ if tf.test.gpu_device_name():
 else:
     print("Usando CPU.")
 
-# %% id="IFNd6dlwv7T1" executionInfo={"status": "ok", "timestamp": 1632436878540, "user_tz": 180, "elapsed": 1406, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 ##################################################################
 # Este script carga VGG16, reemplaza la ultima capa de prediccion,
 # y reentrena para clasificar imagenes de 10 categorias de flores.
@@ -50,7 +50,7 @@ from sklearn.model_selection import train_test_split
 import sklearn.preprocessing
 
 
-# %% id="fm-hHB0NyDux" executionInfo={"status": "ok", "timestamp": 1632436878545, "user_tz": 180, "elapsed": 38, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # algunos parametros del entrenamiento
 batch_size = 32  # cada batch son 32 imagenes
 epochs = 13  # entrenamos hasta 13 epochs (pasadas sobre el dataset de entrenamiento), a menos que paremos antes por early stopping
@@ -63,7 +63,7 @@ learning_rate_decay = 1e-6
 learning_rate_momentum = 0.7
 
 
-# %% id="iI_H5qI_yF9w" executionInfo={"status": "ok", "timestamp": 1632436878547, "user_tz": 180, "elapsed": 36, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 def preprocesar_imagen_como_caffe(image: np.ndarray) -> np.ndarray:
     """
     Transforma las imagenes al formato con el que fue entrenado el modelo de VGG16 que estamos usando.
@@ -108,7 +108,7 @@ def encode_onehot_labels(labels: np.ndarray) -> np.ndarray:
     return label_binarizer.transform(labels)
 
 
-# %% id="Emb12Xn9yLhM" executionInfo={"status": "ok", "timestamp": 1632436878549, "user_tz": 180, "elapsed": 34, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 def VGG_16():
     """
     Crea una red para clasificar imagenes con la arquitectura VGG16, para poder reusar los pesos de VGG16 entrenado con imagenet.
@@ -182,7 +182,7 @@ def VGG_16():
     return Model(inputs=img_input, outputs=output, name='vgg16')
 
 
-# %% id="Tv7VlazpyORO" executionInfo={"status": "ok", "timestamp": 1632436884228, "user_tz": 180, "elapsed": 3441, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # leer el dataset de 210 imagenes de flores junto con sus etiquetas
 dataset = h5py.File(
     "/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/10FlowerColorImages.h5",
@@ -194,11 +194,11 @@ image_labels = dataset['labels'][()]
 images = rescalar_imagenes(images)
 onehot_labels = encode_onehot_labels(image_labels)
 
-# %% id="ZXfOOjk9y557" executionInfo={"status": "ok", "timestamp": 1632436884804, "user_tz": 180, "elapsed": 582, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # armar la arquitectura de la red neuronal
 pretrained_vgg16 = VGG_16()
 
-# %% id="AJdWYYMhy8NE" executionInfo={"status": "ok", "timestamp": 1632436895105, "user_tz": 180, "elapsed": 9211, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # Leer los pesos de VGG16 ya entrenada con imagenet.
 # El modelo fue entrenado con los canales de cada imagen en el orden 'BGR' que utiliza la biblitoeca "Caffe",
 #  y c/pixel centrado sobre la media del dataset imagenet = [103.939, 116.779, 123.68]
@@ -207,7 +207,7 @@ pretrained_vgg16.load_weights(
     '/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/vgg16_weights.h5'
 )
 
-# %% id="3096j1L7yVfx" executionInfo={"status": "ok", "timestamp": 1632436895105, "user_tz": 180, "elapsed": 33, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # setear a todas las capas, excepto la ultima de clasificacion
 # como "no entrenable" (los pesos no se actualizaran)
 for layer in pretrained_vgg16.layers[:-1]:
@@ -223,7 +223,7 @@ new_layer = Dense(10, activation="softmax", name="predict_10flowers")(
 new_model = Model(inputs=pretrained_vgg16.input, outputs=new_layer)
 
 
-# %% id="5q_Jonghyesi" executionInfo={"status": "ok", "timestamp": 1632436895106, "user_tz": 180, "elapsed": 31, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 # compilar el modelo con SGD/momentum optimizer
 # y un learning rate muuuuy lento
 sgd = SGD(
@@ -239,7 +239,7 @@ new_model.compile(
     optimizer=sgd, loss='categorical_crossentropy', metrics=['categorical_accuracy']
 )
 
-# %% id="2iSzocdpyjei" executionInfo={"status": "ok", "timestamp": 1632436895106, "user_tz": 180, "elapsed": 30, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}}
+# %%
 X_train, X_test, y_train, y_test = train_test_split(
     images,
     onehot_labels,
@@ -271,7 +271,7 @@ train_generator = train_datagen.flow(
 
 validation_generator = test_datagen.flow(X_test, y_test)
 
-# %% colab={"base_uri": "https://localhost:8080/"} id="nFgMzQNoymQm" executionInfo={"status": "ok", "timestamp": 1632437046203, "user_tz": 180, "elapsed": 151126, "user": {"displayName": "Fernando Das Neves", "photoUrl": "https://lh3.googleusercontent.com/a/default-user=s64", "userId": "06324247755041763216"}} outputId="7ae1cb08-ff3a-458e-d4cc-1fc9612b91b2"
+# %%
 # entrenar y guarda el mejor resultado
 new_model.fit(
     train_generator,
