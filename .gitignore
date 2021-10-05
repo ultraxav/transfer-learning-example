@@ -1,26 +1,9 @@
 # folders
+/data/*
 /src/.ipynb_checkpoints/*
-
-# csv files
-*.csv
-
-# h5 files
-*.h5
-
-# json files
-*.json
 
 # Jupyter Notebooks
 *.ipynb
 
-# png files
-*.png
-
 # pre-commit conf
 .pre-commit-config.yaml
-
-# pyc files
-*.pyc
-
-# text files
-*.txt
