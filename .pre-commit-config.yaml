@@ -1,0 +1,16 @@
+repos:
+-   repo: git://github.com/pre-commit/pre-commit-hooks
+    rev: v2.4.0
+    hooks:
+    - id: trailing-whitespace
+      types: [python]
+-   repo: https://github.com/psf/black
+    rev: 21.8b0
+    hooks:
+    - id: black
+      name: black
+      entry: black
+      language: python
+      types: [python]
+      args: [--skip-string-normalization]
+      language_version: python3.8
