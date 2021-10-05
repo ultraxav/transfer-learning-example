@@ -28,6 +28,10 @@
 # ## Carga de Librerías
 
 # %%
+# import os
+# os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+# %%
 import h5py
 import numpy as np
 import sklearn.preprocessing
