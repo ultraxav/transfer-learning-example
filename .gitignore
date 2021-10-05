@@ -1,0 +1,20 @@
+# CSV Files
+*.csv
+
+# Jupyter Notebooks
+*.ipynb
+
+# pyc files
+*.pyc
+
+# pre-commit conf
+.pre-commit-config.yaml
+
+# excel files
+*.xlsx
+
+# db files
+*.db
+
+# json files
+*.json
