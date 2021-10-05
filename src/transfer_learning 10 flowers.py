@@ -34,7 +34,7 @@ import sklearn.preprocessing
 import tensorflow as tf
 
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Flatten, Dense, Input, Conv2D, MaxPooling2D
+from keras.layers import Conv2D, Dense, Flatten, Input, MaxPooling2D
 from keras.models import Model
 from keras.preprocessing.image import ImageDataGenerator
 from skimage.transform import resize
@@ -74,7 +74,7 @@ def preprocesar_imagen_como_caffe(image: np.ndarray) -> np.ndarray:
     :param image: Una imagen representada como una matriz de (largo en pixeles, alto en pixeles, 3 canales)
     :return La imagen transformada.
     """
-    # Pasar imagen de  'RGB'->'BGR', porque el modelo ya entrenado de VGG16 que estamos usando
+    # Pasar imagen de 'RGB'->'BGR', porque el modelo ya entrenado de VGG16 que estamos usando
     # proviene de Caffe, y fue entrenado en ese orden de channels
     image = image[:, :, ::-1]
 
@@ -213,13 +213,13 @@ images = rescalar_imagenes(images)
 onehot_labels = encode_onehot_labels(image_labels)
 
 # %% [markdown]
-# # Armado de la arquitectura de la Red Neuronal
+# ## Armado de la arquitectura de la Red Neuronal
 
 # %%
 pretrained_vgg16 = VGG_16()
 
 # %% [markdown]
-# # Leer los pesos de VGG16 ya entrenada con imagenet
+# ## Leer los pesos de VGG16 ya entrenada con imagenet
 #
 # El modelo fue entrenado con los canales de cada imagen en el orden 'BGR' que utiliza la biblioteca "Caffe", y c/pixel centrado sobre la media del dataset imagenet = [103.939, 116.779, 123.68]
 #
@@ -314,8 +314,8 @@ new_model.fit(
     epochs=epochs,
     validation_data=validation_generator,
     validation_steps=len(y_test) // batch_size,
-    use_multiprocessing=True,
-    workers=num_cores,
+    # use_multiprocessing=True,
+    # workers=num_cores,
     callbacks=[
         EarlyStopping(
             monitor='val_categorical_accuracy',
@@ -324,6 +324,7 @@ new_model.fit(
         ),
         ModelCheckpoint(
             '../data/vgg16_retrained_10flowers.h5',
+            # '/content/drive/MyDrive/collab/transfer_learning/vgg16_retrained_10flowers.h5',
             verbose=1,
             monitor='val_categorical_accuracy',
             save_best_only=True,

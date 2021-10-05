@@ -14,65 +14,73 @@
 #     name: python3
 # ---
 
-# %%
-# Antes de ejecutar: Activar TPUs como sigue:
-# menu "Entorno de Ejecucion" -> "Cambiar tipo de entorno de ejecucion" -> "Acelerador de Hardware" = "TPU"
+# %% [markdown]
+# # Reentrenamiento de Red v2
+#
+# Este script carga VGG16, reemplaza la última capa de predicción, y reentrena para clasificar imágenes de 10 categorías de flores.
+#
+# ## Integrantes:
+#
+# * Del Villar, Javier
+# * Pistoya, Haydeé Soledad
+# * Sorza, Andrés
+#
+# ## Carga de Librerías
 
-# %tensorflow_version 2.x
+# %%
+import h5py
+import numpy as np
+import sklearn.preprocessing
 import tensorflow as tf
 
-print("Usandor Tensorflow version " + tf.__version__)
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras.layers import Conv2D, Dense, Flatten, Input, MaxPooling2D
+from keras.models import Model
+from keras.preprocessing.image import ImageDataGenerator
+from skimage.transform import resize
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.optimizers import SGD
 
+print(f'Usando Tensorflow version {tf.__version__}')
 
 if tf.test.gpu_device_name():
-    print('Usando GPU: {}'.format(tf.test.gpu_device_name()))
+    print(f'Usando GPU: {tf.test.gpu_device_name()}')
 else:
-    print("Usando CPU.")
+    print('Usando CPU')
+
+# %% [markdown]
+# ## Parámetros
 
 # %%
-##################################################################
-# Este script carga VGG16, reemplaza la ultima capa de prediccion,
-# y reentrena para clasificar imagenes de 10 categorias de flores.
-##################################################################
+# Algunos parámetros del entrenamiento
+batch_size = 32
+epochs = 13
+epochs_to_stop_after_no_improvement = 3
+num_cores = 4
 
-import h5py
-from skimage.transform import resize
-import numpy as np
-
-from keras.layers import Flatten, Dense, Dropout, Input, Conv2D, MaxPooling2D
-from keras.models import Model, Sequential
-from tensorflow.keras.optimizers import SGD
-from keras.preprocessing.image import ImageDataGenerator
-from keras.utils.vis_utils import plot_model
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from sklearn.model_selection import train_test_split
-import sklearn.preprocessing
-
-
-# %%
-# algunos parametros del entrenamiento
-batch_size = 32  # cada batch son 32 imagenes
-epochs = 13  # entrenamos hasta 13 epochs (pasadas sobre el dataset de entrenamiento), a menos que paremos antes por early stopping
-epochs_to_stop_after_no_improvement = 3  # cuantas epochs consecutivas no tienen que tener mejora para aplicar early stopping
-num_cores = 4  # cambiar este numero a la cantidad de cores de su cpu
-
-# parametros del descenso de gradiente
+# Parámetros del descenso de gradiente
 learning_rate = 0.001
 learning_rate_decay = 1e-6
 learning_rate_momentum = 0.7
 
 
+# %% [markdown]
+# ## Funciones de Soporte
+
 # %%
 def preprocesar_imagen_como_caffe(image: np.ndarray) -> np.ndarray:
     """
-    Transforma las imagenes al formato con el que fue entrenado el modelo de VGG16 que estamos usando.
-    :param image: Una imagen representada como una matriz de (largo en pixels, alto en pixels, 3 canales)
+    Transforma las imágenes al formato con el que fue entrenado el modelo de VGG16 que estamos usando.
+    :param image: Una imagen representada como una matriz de (largo en pixeles, alto en pixeles, 3 canales)
     :return La imagen transformada.
     """
-    # pasar imagen de  'RGB'->'BGR', porque el modelo ya entrenado de VGG16 que estamos usando proviene de Caffe, y fue entrenado en ese orden de channels
+    # Pasar imagen de 'RGB'->'BGR', porque el modelo ya entrenado de VGG16 que estamos usando
+    # proviene de Caffe, y fue entrenado en ese orden de channels
     image = image[:, :, ::-1]
-    # central valor de los pixels alrededor del valor medio de cada canal en el conj. de entrenamiento,
-    # esto se calcula simplemente promediando todos los valores de cada canal en todas las imagenes de entrenamiento en imagenet.
+
+    # Centrar el valor de los pixeles alrededor del valor medio de cada canal en el conj. de
+    # entrenamiento, esto se calcula simplemente promediando todos los valores de cada canal en
+    # todas las imágenes de entrenamiento en imagenet.
     image[:, :, 0] -= 103.939
     image[:, :, 1] -= 116.779
     image[:, :, 2] -= 123.68
@@ -81,8 +89,8 @@ def preprocesar_imagen_como_caffe(image: np.ndarray) -> np.ndarray:
 
 def rescalar_imagenes(flower_images: np.ndarray) -> np.ndarray:
     """
-    Cambia el tamaño de las imagenes de flores al tamaño con el que esta entrenada VGG16: 224x224 pixels
-    :param flower_images: Una matriz de (nro_imagenes, ancho en pixels, alto en pixels, 3 canales); cada valor de la matriz esta entre 0 y 255.
+    Cambia el tamaño de las imágenes de flores al tamaño con el que esta entrenada VGG16: 224x224 pixeles
+    :param flower_images: Una matriz de (nro_imagenes, ancho en pixeles, alto en pixeles, 3 canales); cada valor de la matriz esta entre 0 y 255.
     :return: Otra matriz de las mismas dimensiones de 'flowers' pero con todos los valores entre 0 y 1.
     """
     rescaled_images = np.empty(
@@ -98,18 +106,25 @@ def rescalar_imagenes(flower_images: np.ndarray) -> np.ndarray:
 
 def encode_onehot_labels(labels: np.ndarray) -> np.ndarray:
     """
-    Cambia la codificacion de las categorias de flores a one-hot encoding, que es lo que necesitamos para entrenar la NN.
-    :param labels: Una lista o arreglo de strings, el i-avo string es la categoria de la i-ava imagen de entrenamiento.
-    :return una matriz de tamaño (cantidad de ejemplos en labels, cantidad de categorias en 'labels') donde cada celda es 1 o 0. Hay 1 solo 1 por fila.
+    Cambia la codificación de las categorías de flores a one-hot encoding, que es lo que necesitamos para entrenar la NN.
+    :param labels: Una lista o arreglo de strings, el i-avo string es la categoría de la i-ava imagen de entrenamiento.
+    :return una matriz de tamaño (cantidad de ejemplos en labels, cantidad de categorías en 'labels') donde cada celda es 1 o 0. Hay 1 solo 1 por fila.
     """
     label_binarizer = sklearn.preprocessing.LabelBinarizer()
     label_binarizer.fit(range(max(labels) + 1))
     return label_binarizer.transform(labels)
 
 
+# %% [markdown]
+# ## Definición de la Red Neuronal
+
 # %%
 def VGG_16():
-    img_input = Input(shape=(224, 224, 3))  # tamaño de imagenes y 3 canales de colores
+    """
+    Crea una red para clasificar imágenes con la arquitectura VGG16, para poder reusar los pesos de VGG16 entrenado con imagenet.
+    """
+    # Tamaño de imágenes es 224x224 y 3 canales de colores
+    img_input = Input(shape=(224, 224, 3))
 
     # Block 1
     output = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv1')(
@@ -165,81 +180,105 @@ def VGG_16():
     )(output)
     output = MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool')(output)
 
-    # capa de clasificacion
+    # Capa de clasificación
     output = Flatten(name='flatten')(output)
     output = Dense(4096, activation='relu', name='fc1')(output)
     output = Dense(4096, activation='relu', name='fc2')(output)
+
+    # La salida son las 1000 categorías de imagenet
     output = Dense(1000, activation='softmax', name='predictions')(output)
 
     return Model(inputs=img_input, outputs=output, name='vgg16')
 
 
+# %% [markdown]
+# ## Carga de Datos
+#
+# Leer el dataset de 210 imagenes de flores junto con sus etiquetas
+
 # %%
-# leer el dataset de 210 imagenes de flores junto con y sus etiquetas
 dataset = h5py.File(
-    "/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/10FlowerColorImages.h5",
+    '../data/imagenet_dataset/10FlowerColorImages.h5',
     'r',
 )
+# dataset = h5py.File(
+#     '/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/10FlowerColorImages.h5',
+#     'r',
+# )
+
 # El [()] indica que lea el dataset completo a memoria, en vez de leerlo bajo demanda
 images = dataset['images'][()]
 image_labels = dataset['labels'][()]
 images = rescalar_imagenes(images)
 onehot_labels = encode_onehot_labels(image_labels)
 
+# %% [markdown]
+# ## Armado de la arquitectura de la Red Neuronal
+
 # %%
-# armar la arquitectura de la red neuronal
 pretrained_vgg16 = VGG_16()
 
-# %%
-# El modelo tiene los pesos del entrenamiento con Caffe, donde el dataset tiene los pixels en orden 'BGR'
-#  y c/pixel centrado sobre la media del dataset imagenet = [103.939, 116.779, 123.68]
-# Las imagenes nuevas tienen que tener exactamente esta transformacion
-pretrained_vgg16.load_weights(
-    '/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/vgg16_weights.h5'
-)
+# %% [markdown]
+# ## Leer los pesos de VGG16 ya entrenada con imagenet
+#
+# El modelo fue entrenado con los canales de cada imagen en el orden 'BGR' que utiliza la biblioteca "Caffe", y c/pixel centrado sobre la media del dataset imagenet = [103.939, 116.779, 123.68]
+#
+# Las imágenes nuevas deben tener exactamente esta transformación.
 
 # %%
-# Aqui eliminamos el block5 COMPLETO de VGG 16 (el ultimo bloque de convoluciones antes de clasificar),
+pretrained_vgg16.load_weights('../data/imagenet_dataset/vgg16_weights.h5')
+# pretrained_vgg16.load_weights(
+#     '/content/drive/MyDrive/collab/transfer_learning/imagenet_dataset/vgg16_weights.h5'
+# )
+
+# %% [markdown]
+# ## Modificación de la Red Neuronal
+
+# %%
+# Aquí eliminamos el block5 COMPLETO de VGG 16 (el ultimo bloque de convoluciones antes de clasificar),
 # y conectamos la salida del block 4 a las 2 capas densas de clasificación.
 # Lo eliminamos creando una nueva capa "replaced_flatten" cuya entrada es la salida de "block4_pool".
-# De ahi para abajo repetimos el esquema de 3 capas de clasificación.
-# Pueden ver en "summary" que el block 5 no está mas.
+# De ahí para abajo repetimos el esquema de 3 capas de clasificación.
+# Pueden ver en "summary" que el block 5 no está más.
 new_layer = Flatten(name='replaced_flatten')(
     pretrained_vgg16.get_layer("block4_pool").output
 )
 new_layer = Dense(4096, activation='relu', name='replaced_fc1')(new_layer)
 new_layer = Dense(4096, activation='relu', name='replaced_fc2')(new_layer)
-new_layer = Dense(10, activation="softmax", name="predict_10flowers")(new_layer)
+new_layer = Dense(10, activation='softmax', name='predict_10flowers')(new_layer)
 pretrained_vgg16 = Model(pretrained_vgg16.input, new_layer)
 pretrained_vgg16.summary()
 
 # %%
-# setear a todas las capas, excepto las 3 ultimas capas de clasificacion
-# como "no entrenable" (los pesos no se actualizaran)
+# Setear a todas las capas, excepto las 3 ultimas capas de clasificacion
+# como "no entrenable" (los pesos no se actualizarán)
 for layer in pretrained_vgg16.layers[:-3]:
     layer.trainable = False
 
-# crear un nuevo modelo cuya salida es la nueva capa
+# Crear un nuevo modelo cuya salida es la nueva capa
 new_model = Model(inputs=pretrained_vgg16.input, outputs=new_layer)
 
 # %%
-# compilar el modelo con SGD/momentum optimizer
-# y un learning rate muuuuy lento
+# Compilar el modelo con SGD/momentum optimizer y un learning rate muy lento
 sgd = SGD(
     learning_rate=learning_rate,
     decay=learning_rate_decay,
     momentum=learning_rate_momentum,
     nesterov=True,
 )
-# regla en Keras:
-# si loss=categorical_crossentropy => metrics=categorical_accuracy
-# si loss=binary_crossentropy y mas de 2 clases => metrics=categorical_accuracy, sino metrics=binary_accuracy
+
+# Regla en Keras:
+# Si loss = categorical_crossentropy => metrics = categorical_accuracy
+# Si loss = binary_crossentropy y más de 2 clases => metrics = categorical_accuracy,
+# Sino metrics=binary_accuracy
 new_model.compile(
     optimizer=sgd, loss='categorical_crossentropy', metrics=['categorical_accuracy']
 )
 
+# %% [markdown]
+# ## Creación de datasets de entrenamiento
+
 # %%
-# didivir el dataset en 70% entrenamiento y 30% test
 X_train, X_test, y_train, y_test = train_test_split(
     images,
     onehot_labels,
@@ -249,7 +288,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=image_labels,
 )
 
-# aumentar la cantidad de ejemplos de entrenamiento, inventando variaciones de las imagenes
+# Aumentar la cantidad de ejemplos de entrenamiento, inventando variaciones de las imágenes
 train_datagen = ImageDataGenerator(
     width_shift_range=0.1,
     height_shift_range=0.1,
@@ -260,7 +299,8 @@ train_datagen = ImageDataGenerator(
     preprocessing_function=preprocesar_imagen_como_caffe,
 )
 
-# testear con los casos de prueba sin rotar, cambiar tamaño ni nada, solo acomodados a la manera en que fue entrenada la NN
+# Testear con los casos de prueba sin rotar, cambiar tamaño ni nada, solo acomodados a la manera en
+# que fue entrenada la NN
 test_datagen = ImageDataGenerator(preprocessing_function=preprocesar_imagen_como_caffe)
 
 train_generator = train_datagen.flow(
@@ -271,17 +311,18 @@ train_generator = train_datagen.flow(
 
 validation_generator = test_datagen.flow(X_test, y_test)
 
+# %% [markdown]
+# ## Entrenamiento
+
 # %%
-# entrenar y guarda el mejor resultado
 new_model.fit(
     train_generator,
     steps_per_epoch=len(y_train) // batch_size,
     epochs=epochs,
     validation_data=validation_generator,
     validation_steps=len(y_test) // batch_size,
-    use_multiprocessing=True,
-    workers=num_cores,
-    # parar el entrenamiento si no mejora en 3 epochs consecutivas; guardar el mejor modelo hasta ese momento al final de cada epoch
+    # use_multiprocessing=True,
+    # workers=num_cores,
     callbacks=[
         EarlyStopping(
             monitor='val_categorical_accuracy',
@@ -289,7 +330,8 @@ new_model.fit(
             verbose=1,
         ),
         ModelCheckpoint(
-            '/content/drive/MyDrive/collab/transfer_learning/vgg16_retrained_10flowers_v2.h5',
+            '../data/vgg16_retrained_10flowers_v2.h5',
+            # '/content/drive/MyDrive/collab/transfer_learning/vgg16_retrained_10flowers_v2.h5',
             verbose=1,
             monitor='val_categorical_accuracy',
             save_best_only=True,
@@ -298,4 +340,4 @@ new_model.fit(
     ],
 )
 
-print("Entrenamiento finalizado.")
+print('Entrenamiento finalizado!')
