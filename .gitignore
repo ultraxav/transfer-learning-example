@@ -1,20 +1,23 @@
-# CSV Files
+# csv files
 *.csv
+
+# h5 files
+*.h5
+
+# json files
+*.json
 
 # Jupyter Notebooks
 *.ipynb
 
-# pyc files
-*.pyc
+# png files
+*.png
 
 # pre-commit conf
 .pre-commit-config.yaml
 
-# excel files
-*.xlsx
+# pyc files
+*.pyc
 
-# db files
-*.db
-
-# json files
-*.json
+# text files
+*.txt
